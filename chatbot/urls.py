@@ -1,0 +1,15 @@
+from django.urls import path
+from chatbot import views
+
+urlpatterns = [
+    # Chat
+    path('chat', views.chat_view, name='chatbot_chat_alt'),
+    path('api/chat', views.chat_view, name='chatbot_chat'),
+
+    # History
+    path('history', views.get_history_view, name='chatbot_history_alt'),
+    path('api/history', views.get_history_view, name='chatbot_history'),
+
+    # Threads
+    path('api/threads', views.get_threads_view, name='chatbot_threads'),
+]

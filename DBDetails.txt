@@ -1,0 +1,3 @@
+Username - postgres
+Password - root
+Database Name - postgres

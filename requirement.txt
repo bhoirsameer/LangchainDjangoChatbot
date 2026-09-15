@@ -1,0 +1,12 @@
+django>=5.0
+django-cors-headers
+dj-database-url
+uvicorn
+langchain
+psycopg2-binary
+langchain_community
+langchain_huggingface
+langchain_postgres
+pydantic-settings
+langchain_groq
+python-dotenv
