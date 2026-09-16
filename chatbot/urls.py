@@ -12,4 +12,7 @@ urlpatterns = [
 
     # Threads
     path('api/threads', views.get_threads_view, name='chatbot_threads'),
+    path('api/delete-thread', views.delete_thread_view, name='chatbot_delete_thread'),
+    path('api/threads/delete', views.delete_thread_view, name='chatbot_delete_thread_alt'),
 ]
+
