@@ -6,6 +6,10 @@ urlpatterns = [
     path('chat', views.chat_view, name='chatbot_chat_alt'),
     path('api/chat', views.chat_view, name='chatbot_chat'),
 
+    # Chat (streaming, Server-Sent Events)
+    path('chat/stream', views.chat_stream_view, name='chatbot_chat_stream_alt'),
+    path('api/chat/stream', views.chat_stream_view, name='chatbot_chat_stream'),
+
     # History
     path('history', views.get_history_view, name='chatbot_history_alt'),
     path('api/history', views.get_history_view, name='chatbot_history'),
