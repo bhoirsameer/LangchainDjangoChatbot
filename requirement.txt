@@ -4,9 +4,11 @@ dj-database-url
 uvicorn
 langchain
 psycopg2-binary
+psycopg[binary]
 langchain_community
 langchain_huggingface
 langchain_postgres
+sentence-transformers
 pydantic-settings
 langchain_groq
 python-dotenv

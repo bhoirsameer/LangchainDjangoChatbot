@@ -1,12 +1,12 @@
 import json
 import uuid
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.db.models import Max
 
 from chatbot.models import ChatMessage
-from embeddings_and_model_calls import add_embeddings_and_call_llm
+from embeddings_and_model_calls import add_embeddings_and_call_llm, normalize_chat_id, stream_llm_reply
 
 
 @csrf_exempt
@@ -53,6 +53,73 @@ def chat_view(request):
         "reply": response_text,
         "chat_id": cid
     })
+
+
+def _sse_event(data, event=None):
+    """Format one Server-Sent Events message (a named event + a JSON data line)."""
+    payload = json.dumps(data)
+    if event:
+        return f"event: {event}\ndata: {payload}\n\n"
+    return f"data: {payload}\n\n"
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def chat_stream_view(request):
+    """
+    Same contract as chat_view, but streams the reply as Server-Sent Events
+    instead of waiting for the full LLM response:
+      - event: start  -> {"chat_id": ...}                      (sent once, immediately)
+      - event: token  -> {"content": "<piece of the reply>"}   (sent repeatedly)
+      - event: error  -> {"detail": "..."}                     (sent instead of tokens, on failure)
+      - event: done   -> {"chat_id": ..., "full_response": "..."} (sent once, always last)
+    """
+    if not request.current_session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    try:
+        body = json.loads(request.body.decode('utf-8'))
+    except Exception:
+        return JsonResponse({"detail": "Invalid JSON body"}, status=400)
+
+    user_msg = body.get("message", "").strip()
+    # Normalized up front so the ChatMessage rows below and stream_llm_reply's
+    # own Postgres history / vectorstore usage all agree on the same chat_id.
+    cid = normalize_chat_id(body.get("chat_id"))
+    username = request.current_session["username"]
+
+    # 1. Save user message in PostgreSQL, same as the non-streaming endpoint.
+    ChatMessage.objects.create(
+        chat_id=cid,
+        username=username,
+        role="user",
+        content=user_msg
+    )
+
+    def event_stream():
+        full_response = ""
+        try:
+            yield _sse_event({"chat_id": cid}, event="start")
+            for piece in stream_llm_reply(chat_id=cid, user_message=user_msg):
+                full_response += piece
+                yield _sse_event({"content": piece}, event="token")
+        except Exception as e:
+            full_response = full_response or f"LLM error: {str(e)}"
+            yield _sse_event({"detail": f"LLM error: {str(e)}"}, event="error")
+        finally:
+            # 3. Save assistant response in PostgreSQL, same as the non-streaming endpoint.
+            ChatMessage.objects.create(
+                chat_id=cid,
+                username=username,
+                role="assistant",
+                content=full_response
+            )
+            yield _sse_event({"chat_id": cid, "full_response": full_response}, event="done")
+
+    response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+    response["Cache-Control"] = "no-cache"
+    response["X-Accel-Buffering"] = "no"  # disable proxy buffering (e.g. nginx) so chunks flush immediately
+    return response
 
 
 @require_http_methods(["GET"])
