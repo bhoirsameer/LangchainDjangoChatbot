@@ -85,7 +85,10 @@ WSGI_APPLICATION = 'chatbot_project.wsgi.application'
 
 # Database
 # Uses PostgreSQL URL from environment variable or fallback
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:root@127.0.0.1:5432/postgres")
+DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("database_url") or "postgresql://postgres:root@127.0.0.1:5432/postgres"
+if DATABASE_URL.startswith("postgresql+psycopg://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql+psycopg://", "postgresql://", 1)
+
 
 DATABASES = {
     'default': dj_database_url.config(

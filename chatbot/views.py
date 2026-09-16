@@ -23,7 +23,7 @@ def chat_view(request):
     user_msg = body.get("message", "").strip()
     cid = body.get("chat_id")
     if not cid:
-        cid = f"chat_{uuid.uuid4().hex[:8]}"
+        cid = str(uuid.uuid4())
 
     username = request.current_session["username"]
 
@@ -121,3 +121,36 @@ def get_threads_view(request):
         })
 
     return JsonResponse({"threads": threads})
+
+
+@csrf_exempt
+@require_http_methods(["POST", "DELETE"])
+def delete_thread_view(request):
+    if not request.current_session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    username = request.current_session["username"]
+    chat_id = None
+
+    if request.body:
+        try:
+            body = json.loads(request.body.decode('utf-8'))
+            chat_id = body.get("chat_id")
+        except Exception:
+            pass
+
+    if not chat_id:
+        chat_id = request.GET.get("chat_id")
+
+    if not chat_id:
+        return JsonResponse({"detail": "chat_id is required."}, status=400)
+
+    # Call custom ORM delete() on filtered queryset -> performs soft delete (is_deleted=True)
+    updated_count = ChatMessage.objects.filter(username=username, chat_id=chat_id.strip()).delete()
+
+    return JsonResponse({
+        "message": "Thread soft-deleted successfully",
+        "chat_id": chat_id,
+        "affected_count": updated_count
+    })
+

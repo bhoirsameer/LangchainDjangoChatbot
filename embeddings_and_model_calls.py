@@ -5,6 +5,7 @@ from langchain_postgres import PostgresChatMessageHistory
 
 conn = psycopg.connect(settings.database_url)
 table_name = "langchain_chat_history"
+PostgresChatMessageHistory.create_tables(conn, table_name)
 
 
 def add_embeddings_and_call_llm(chat_id, user_message):
